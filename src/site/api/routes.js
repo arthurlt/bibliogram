@@ -300,5 +300,35 @@ module.exports = [
 				}
 			}
 		}
+	},
+	{
+		route: `/(?:p|tv|igtv|reel)/json/(${constants.external.shortcode_regex})`, methods: ["GET"], code: async ({req, fill}) => {
+			const shortcode = fill[0]
+			const settings = getSettings(req)
+
+			try {
+				const {post} = await getPostAndQuota(req, shortcode)
+				return {statusCode: 200, contentType: "application/json", content: JSON.stringify(post)}
+			} catch (error) {
+				if (error === constants.symbols.NOT_FOUND) {
+					return render(404, "pug/friendlyerror.pug", {
+						statusCode: 404,
+						title: "Not found",
+						message: "Somehow, you reached a post that doesn't exist.",
+						withInstancesLink: false,
+						settings
+					})
+				} else if (error === constants.symbols.INSTAGRAM_BLOCK_TYPE_DECEMBER) {
+					return render(502, "pug/blocked_december.pug")
+				} else if (error === constants.symbols.RATE_LIMITED) {
+					return render(503, "pug/blocked_graphql.pug")
+				} else if (error === constants.symbols.QUOTA_REACHED) {
+					const isProxyNetwork = quota.isProxyNetwork(req)
+					return render(429, "pug/quota_reached.pug", {isProxyNetwork})
+				} else {
+					throw error
+				}
+			}
+		}
 	}
 ]
